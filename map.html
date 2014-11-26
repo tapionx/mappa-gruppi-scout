@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Mappa dei gruppi scout</title>
+        <link rel="stylesheet" href="css/leaflet.css" />
+        <link rel="stylesheet" href="css/leaflet.label.css" />
+        <style>
+            html, body {
+                height: 100%;
+                min-height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+
+            #map {
+                width: 100%;
+                height: 100%;
+            }
+
+            .group-name {
+                margin: 0;
+            }
+            
+        </style>
+    </head>
+    <body>
+        <div id="map"></div>
+        <div id="bindLabel" style="display: none;">
+            <div>
+                <p class="group-name"></p>
+                <a class="group-url" href=""></a>
+            </div>
+        </div>
+        <script src="js/jquery-2.1.0.min.js"></script>
+        <script src="js/csv.js"></script>
+        <script src="js/leaflet.js"></script>
+        <script src="js/leaflet.label.js"></script>
+        <script>
+            
+            /* TODO
+
+               capire come gestire il popup
+               marker AGESCI
+               parametri da URL: zona, regione, id spreadsheet
+               pubblicare su github pages
+               inclusione crossdomain dell'iframe, controllare parametri meta
+            */
+
+            var spreadsheet_id = '1dsllmyVpJEECoSHTML2v1UnlYWGAjNi3-fGNGZ9jowM';
+            var spreadsheet_url = 'http://www.corsproxy.com/docs.google.com/spreadsheets/d/'+spreadsheet_id+'/export?gid=0&format=csv';
+
+            window.markers = new L.FeatureGroup();
+            window.scout_units = [];
+            window.spreadsheet_template = [];
+
+           $.ajax(spreadsheet_url,
+            {
+                success : function (data, stats, xhr) {
+                    console.log('Spreadsheet loaded');
+                },
+                error: function(xhr, status) {
+                    console.error('Errore nella richiesta dello spreadsheet: ', status);
+                },
+            })
+            .pipe( CSV.parse )
+            .done( function(rows) {
+                $.each(rows, function(i, row) {
+                    if(i == 0) {
+                        return true;
+                    }
+                    if(i == 1) {
+                        window.spreadsheet_template = row;
+                        return true;
+                    }
+                    console.log(row);
+                    var unit = {};
+                    $.each(spreadsheet_template, function(j, title) {
+                        unit[title] = row[j];
+                    });
+
+                    window.scout_units.push(unit);
+
+                    $('#bindLabel .group-name').text(unit['name']);
+                    $('#bindLabel .group-url').attr('href', unit['url']);
+                    $('#bindLabel .group-url').text(unit['url']);
+                    var label = $('#bindLabel').html();
+
+                    var marker = L.marker(
+                        [unit.lat, unit.lon] 
+                        //{icon: icon, zIndexOffset: 1}
+                    )
+                    .bindPopup(label)
+                    .bindLabel(label, {
+                        noHide: true,
+                        clickable: true,
+                        pane: 'popupPane'
+                    })
+                    .addTo(map);
+
+                    markers.addLayer(marker);
+                });
+                window.map.fitBounds(window.markers.getBounds());
+            });     
+
+            window.map = L.map('map');
+            L.tileLayer('http://otile{s}.mqcdn.com/tiles/1.0.0/map/{z}/{x}/{y}.jpeg', {
+                subdomains: '1234',
+            }).addTo(window.map);
+
+            map.setView([44.485387,11.324463], 9);
+
+        </script>
+    </body>
+</html>
